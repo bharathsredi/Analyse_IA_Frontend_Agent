@@ -1,33 +1,44 @@
-'use client'
+import { Card, Title, Text, Table, TableHead, TableRow, TableHeaderCell, TableBody, TableCell, Badge } from '@tremor/react';
+import { BackendAnomalies } from '@/types';
 
-import { BackendAnomalies } from '@/types'
+interface AnomalyTableProps {
+  anomalies: BackendAnomalies;
+}
 
-export default function AnomalyTable({ anomalies, lang }: { anomalies: BackendAnomalies; lang: 'fr' | 'en' }) {
-  if (!anomalies || anomalies.total === 0) return null
+export default function AnomalyTable({ anomalies }: AnomalyTableProps) {
+  const data = [
+    { level: 'High Risk', count: anomalies.high, color: 'red' },
+    { level: 'Medium Risk', count: anomalies.medium, color: 'orange' },
+    { level: 'Low Risk', count: anomalies.low, color: 'yellow' },
+  ];
 
   return (
-    <div className="w-full rounded-xl bg-[#0F1F3D]/80 border border-blue-500/15 p-4">
-      <p className="text-xs font-medium text-blue-200/70 mb-3 uppercase tracking-wide">
-        {lang === 'fr' ? 'Anomalies détectées' : 'Detected Anomalies'}
-      </p>
-      <div className="grid grid-cols-3 gap-3">
-        <div className="text-center px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20">
-          <p className="text-lg font-bold text-red-400">{anomalies.high}</p>
-          <p className="text-[10px] text-red-400/60">{lang === 'fr' ? 'Critiques' : 'Critical'}</p>
-        </div>
-        <div className="text-center px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-          <p className="text-lg font-bold text-amber-400">{anomalies.medium}</p>
-          <p className="text-[10px] text-amber-400/60">{lang === 'fr' ? 'Moyennes' : 'Medium'}</p>
-        </div>
-        <div className="text-center px-3 py-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-          <p className="text-lg font-bold text-blue-400">{anomalies.low}</p>
-          <p className="text-[10px] text-blue-400/60">{lang === 'fr' ? 'Faibles' : 'Low'}</p>
-        </div>
-      </div>
-      <div className="mt-3 flex items-center justify-between text-xs text-blue-300/40">
-        <span>Total: <span className="text-white font-medium">{anomalies.total}</span></span>
-        <span>{anomalies.percentage.toFixed(1)}% {lang === 'fr' ? 'des données' : 'of data'}</span>
-      </div>
-    </div>
-  )
+    <Card className="w-full bg-[#0F1F3D] border-[#243B6E]">
+      <Title className="text-white">Détection d'Anomalies</Title>
+      <Text className="text-blue-300/60 mb-4">
+        {anomalies.total} anomalies détectées au total ({anomalies.percentage.toFixed(2)}%)
+      </Text>
+
+      <Table className="mt-5">
+        <TableHead>
+          <TableRow className="border-b border-blue-500/10">
+            <TableHeaderCell className="text-blue-300">Niveau de Risque</TableHeaderCell>
+            <TableHeaderCell className="text-right text-blue-300">Nombre d'Anomalies</TableHeaderCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {data.map((item) => (
+            <TableRow key={item.level} className="border-b border-blue-500/5 hover:bg-blue-600/5 transition-colors">
+              <TableCell>
+                <Badge color={item.color as any}>{item.level}</Badge>
+              </TableCell>
+              <TableCell className="text-right text-white font-medium">
+                {item.count}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Card>
+  );
 }
