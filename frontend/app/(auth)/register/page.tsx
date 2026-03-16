@@ -1,193 +1,248 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { Brain, Mail, Lock, User, AlertCircle, CheckCircle, Globe } from 'lucide-react'
-import { register, login } from '@/lib/auth'
-import { useAuthStore } from '@/store/authStore'
-import { useChatStore } from '@/store/chatStore'
-import { t, Lang } from '@/lib/i18n'
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import api from '@/lib/api';
+import { useAuthStore } from '@/store/authStore';
 
 export default function RegisterPage() {
-  const router = useRouter()
-  const { setAuthenticated } = useAuthStore()
-  const { setLanguage } = useChatStore()
-  // Local lang state — page always loads in FR
-  const [lang, setLang] = useState<Lang>('fr')
-  const [form, setForm] = useState({ email: '', password: '', full_name: '' })
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const router = useRouter();
+  const setLanguage = useAuthStore((state) => state.setLanguage);
+  const currentLanguage = useAuthStore((state) => state.language);
+  
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleLangToggle = () => {
-    const next: Lang = lang === 'fr' ? 'en' : 'fr'
-    setLang(next)
-    setLanguage(next)
-  }
+  // Password strength logic
+  const getPasswordStrength = (pass: string) => {
+    let score = 0;
+    if (!pass) return 0;
+    if (pass.length >= 8) score += 1;
+    if (/[A-Z]/.test(pass)) score += 1;
+    if (/[a-z]/.test(pass)) score += 1;
+    if (/[0-9]/.test(pass)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pass)) score += 1;
+    return score;
+  };
+
+  const strength = getPasswordStrength(password);
+  
+  const getStrengthColor = () => {
+    if (strength === 0) return 'bg-gray-700';
+    if (strength <= 2) return 'bg-red-500';
+    if (strength <= 4) return 'bg-yellow-500';
+    return 'bg-green-500';
+  };
+
+  const getStrengthLabel = () => {
+    if (strength === 0) return '';
+    if (strength <= 2) return 'Faible';
+    if (strength <= 4) return 'Moyen';
+    return 'Fort';
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-    try {
-      await register(form)
-      setSuccess(true)
-      await login({ email: form.email, password: form.password })
-      setAuthenticated(true)
-      setTimeout(() => router.push('/dashboard'), 800)
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setError(msg || t(lang, 'serverError'))
-    } finally {
-      setLoading(false)
-    }
-  }
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
 
-  const inputStyle = {
-    background: 'rgba(15,31,61,0.8)',
-    border: '1px solid rgba(37,99,235,0.15)',
-    color: '#E8F0FB',
-  }
+    // Basic Validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Veuillez entrer une adresse email valide.');
+      setIsLoading(false);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Les mots de passe ne correspondent pas.');
+      setIsLoading(false);
+      return;
+    }
+
+    if (strength < 3) {
+      setError('Le mot de passe est trop faible. Veuillez ajouter des majuscules, chiffres ou symboles.');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      await api.post('/auth/register', {
+        full_name: fullName,
+        email,
+        password,
+      });
+
+      // Redirect after 800ms
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 800);
+      
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Une erreur est survenue lors de l'inscription.");
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-[#0A1628] bg-grid flex items-center justify-center px-4">
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-blue-600/8 rounded-full blur-[100px]" />
+    <div className="min-h-screen bg-[#0A1628] flex items-center justify-center p-4">
+      {/* Language Toggle */}
+      <div className="absolute top-4 right-4 flex space-x-2 bg-[#0F1F3D] rounded-lg p-1 border border-gray-800">
+        <button
+          onClick={() => setLanguage('FR')}
+          className={`px-3 py-1 rounded-md text-sm transition-all ${currentLanguage === 'FR' ? 'bg-[#2563EB] text-white' : 'text-gray-400 hover:text-white'}`}
+        >
+          FR
+        </button>
+        <button
+          onClick={() => setLanguage('EN')}
+          className={`px-3 py-1 rounded-md text-sm transition-all ${currentLanguage === 'EN' ? 'bg-[#2563EB] text-white' : 'text-gray-400 hover:text-white'}`}
+        >
+          EN
+        </button>
       </div>
 
-      {/* Language toggle */}
-      <button
-        onClick={handleLangToggle}
-        className="fixed top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0F1F3D]/80 border border-blue-500/15 text-blue-300/60 hover:text-blue-300 text-xs transition-all"
-      >
-        <Globe className="w-3.5 h-3.5" />
-        {lang === 'fr' ? 'EN' : 'FR'}
-      </button>
-
-      <div className="relative w-full max-w-md">
+      <div className="w-full max-w-md bg-[#0F1F3D] rounded-xl shadow-2xl p-8 border border-gray-800">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-blue-600 mb-4">
-            <Brain className="w-6 h-6 text-white" />
+          <h1 className="text-3xl font-bold text-white mb-2">Inscription</h1>
+          <p className="text-gray-400">Créez votre compte Analyse IA</p>
+        </div>
+
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/50 text-red-500 rounded-lg p-3 mb-6 text-sm">
+            {error}
           </div>
-          <h1 className="text-2xl font-bold text-white">{t(lang, 'registerTitle')}</h1>
-          <p className="text-blue-300/60 text-sm mt-1">{t(lang, 'registerSubtitle')}</p>
-        </div>
+        )}
 
-        <div className="bg-[#0F1F3D]/70 backdrop-blur-sm border border-blue-500/15 rounded-2xl p-8">
-          {success ? (
-            <div className="flex flex-col items-center gap-3 py-4">
-              <CheckCircle className="w-10 h-10 text-emerald-400" />
-              <p className="text-white font-medium">{t(lang, 'registerSuccess')}</p>
-              <p className="text-blue-300/50 text-sm">
-                {lang === 'fr' ? 'Redirection vers le tableau de bord...' : 'Redirecting to dashboard...'}
-              </p>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label className="block text-sm text-blue-200/70 mb-1.5 font-medium">
-                  {t(lang, 'fullName')}
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400/40" />
-                  <input
-                    type="text"
-                    value={form.full_name}
-                    onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-                    placeholder={lang === 'fr' ? 'Jean Dupont' : 'John Doe'}
-                    style={inputStyle}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg text-sm outline-none"
-                  />
-                </div>
-              </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Nom complet
+            </label>
+            <input
+              type="text"
+              required
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full bg-[#0A1628] border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition-all"
+              placeholder="Jean Dupont"
+            />
+          </div>
 
-              <div>
-                <label className="block text-sm text-blue-200/70 mb-1.5 font-medium">
-                  {t(lang, 'email')}
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400/40" />
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    placeholder="vous@entreprise.fr"
-                    required
-                    style={inputStyle}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg text-sm outline-none"
-                  />
-                </div>
-              </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Email
+            </label>
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-[#0A1628] border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition-all"
+              placeholder="votre@email.com"
+            />
+          </div>
 
-              <div>
-                <label className="block text-sm text-blue-200/70 mb-1.5 font-medium">
-                  {t(lang, 'password')}
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400/40" />
-                  <input
-                    type="password"
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    placeholder="••••••••"
-                    required
-                    minLength={8}
-                    style={inputStyle}
-                    className="w-full pl-10 pr-4 py-2.5 rounded-lg text-sm outline-none"
-                  />
-                </div>
-                <p className="text-[11px] text-blue-300/30 mt-1">
-                  {lang === 'fr' ? 'Minimum 8 caractères' : 'Minimum 8 characters'}
-                </p>
-              </div>
-
-              {error && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  {error}
-                </div>
-              )}
-
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Mot de passe
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-[#0A1628] border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition-all pr-12"
+                placeholder="••••••••"
+              />
               <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-medium text-sm transition-all hover:shadow-[0_0_16px_rgba(37,99,235,0.3)]"
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors p-1"
               >
-                {loading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    {lang === 'fr' ? 'Création...' : 'Creating...'}
-                  </span>
-                ) : (
-                  t(lang, 'register')
-                )}
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
-            </form>
-          )}
+            </div>
+            
+            {/* Password Strength Meter */}
+            {password && (
+              <div className="mt-2 space-y-1">
+                <div className="flex space-x-1 h-1.5">
+                  {[1, 2, 3, 4, 5].map((level) => (
+                    <div
+                      key={level}
+                      className={`flex-1 rounded-full ${
+                        strength >= level ? getStrengthColor() : 'bg-gray-700'
+                      } transition-colors duration-300`}
+                    />
+                  ))}
+                </div>
+                <div className="text-xs text-right text-gray-400">
+                  {getStrengthLabel()}
+                </div>
+              </div>
+            )}
+          </div>
 
-          {!success && (
-            <p className="text-center text-sm text-blue-300/50 mt-6">
-              {t(lang, 'hasAccount')}{' '}
-              <Link href="/login" className="text-blue-400 hover:text-blue-300 transition-colors">
-                {t(lang, 'login')}
-              </Link>
-            </p>
-          )}
-        </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Confirmer le mot de passe
+            </label>
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full bg-[#0A1628] border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-[#2563EB] focus:border-transparent transition-all pr-12"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors p-1"
+              >
+                {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
+          </div>
 
-        <div className="mt-4 flex items-center justify-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-          <p className="text-xs text-emerald-400/60">
-            {lang === 'fr'
-              ? 'Données hébergées en France · RGPD conforme'
-              : 'Data hosted in France · GDPR compliant'}
-          </p>
-        </div>
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-[#2563EB] hover:bg-blue-600 text-white font-medium py-3 rounded-lg transition-all flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="animate-spin" size={20} />
+                <span>Inscription en cours...</span>
+              </>
+            ) : (
+              <span>S'inscrire</span>
+            )}
+          </button>
+        </form>
+
+        <p className="mt-8 text-center text-sm text-gray-400">
+          Déjà un compte ?{' '}
+          <button
+            onClick={() => router.push('/login')}
+            className="text-[#2563EB] hover:text-blue-400 transition-colors font-medium"
+          >
+            Se connecter
+          </button>
+        </p>
       </div>
     </div>
-  )
+  );
 }

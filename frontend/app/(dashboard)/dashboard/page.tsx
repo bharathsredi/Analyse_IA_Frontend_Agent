@@ -49,7 +49,7 @@ export default function DashboardPage() {
       try {
         const res = await api.get('/files/list')
         const raw = Array.isArray(res.data) ? res.data : (res.data.files ?? [])
-        return raw.map(f => ({
+        return raw.map((f: any) => ({
           ...f,
           ...parseFilename(f.filename),
         }))
