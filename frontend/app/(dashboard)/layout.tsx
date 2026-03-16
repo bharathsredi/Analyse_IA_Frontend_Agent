@@ -1,20 +1,18 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
-import Link from 'next/link'
-import { Brain, MessageSquare, Upload, History, Shield, LogOut, Globe, Loader2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Loader2, Menu } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 import { useChatStore } from '@/store/chatStore'
 import { logout, isAuthenticated } from '@/lib/auth'
-import { t } from '@/lib/i18n'
+import Sidebar from '@/components/layout/Sidebar'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
-  const pathname = usePathname()
-  const { user, isLoading } = useAuthStore()
-  const { language: lang, setLanguage } = useChatStore()
+  const { language: lang } = useChatStore()
   const [isChecking, setIsChecking] = useState(true)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   useEffect(() => {
     const checkAuth = () => {
@@ -46,65 +44,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     )
   }
 
-  const navItems = [
-    { href: '/dashboard', icon: MessageSquare, label: t(lang, 'dashboard') },
-    { href: '/upload',    icon: Upload,         label: t(lang, 'upload') },
-    { href: '/history',  icon: History,         label: t(lang, 'history') },
-    { href: '/rgpd',     icon: Shield,          label: t(lang, 'rgpd') },
-  ]
-
   return (
     <div className="h-screen flex overflow-hidden bg-[#0A1628]">
-      {/* Sidebar */}
-      <aside className="w-56 flex flex-col border-r border-blue-500/10 bg-[#0A1628] flex-shrink-0">
-        <div className="h-14 flex items-center gap-2.5 px-4 border-b border-blue-500/10">
-          <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
-            <Brain className="w-4 h-4 text-white" />
-          </div>
-          <span className="font-semibold text-white text-sm">Analyse IA</span>
-        </div>
+      {/* Sidebar Component */}
+      <Sidebar 
+        isOpen={isSidebarOpen} 
+        setIsOpen={setIsSidebarOpen} 
+        onLogout={handleLogout} 
+      />
 
-        <nav className="flex-1 py-4 px-2 space-y-0.5">
-          {navItems.map((item) => {
-            const active = pathname === item.href
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
-                  active
-                    ? 'bg-blue-600/15 text-white border-l-2 border-blue-500 pl-[10px]'
-                    : 'text-blue-300/60 hover:text-blue-200 hover:bg-blue-600/8'
-                }`}
-              >
-                <item.icon className="w-4 h-4 flex-shrink-0" />
-                {item.label}
-              </Link>
-            )
-          })}
-        </nav>
-
-        <div className="p-2 border-t border-blue-500/10 space-y-0.5">
-          <button
-            onClick={() => setLanguage(lang === 'fr' ? 'en' : 'fr')}
-            className="flex items-center gap-2.5 px-3 py-2 w-full rounded-lg text-sm text-blue-300/60 hover:text-blue-200 hover:bg-blue-600/8 transition-all"
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        {/* Mobile Header (Hidden on Desktop) */}
+        <header className="md:hidden h-14 flex items-center justify-between px-4 border-b border-blue-500/10 bg-[#0A1628] flex-shrink-0">
+          <span className="font-bold text-white tracking-wide">Analyse IA</span>
+          <button 
+            onClick={() => setIsSidebarOpen(true)}
+            className="text-gray-400 hover:text-white p-1"
           >
-            <Globe className="w-4 h-4" />
-            {lang === 'fr' ? 'English' : 'Français'}
+            <Menu className="w-6 h-6" />
           </button>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2.5 px-3 py-2 w-full rounded-lg text-sm text-blue-300/60 hover:text-red-400 hover:bg-red-500/8 transition-all"
-          >
-            <LogOut className="w-4 h-4" />
-            {t(lang, 'logout')}
-          </button>
-        </div>
-      </aside>
+        </header>
 
-      {/* Main */}
-      <main className="flex-1 overflow-hidden flex flex-col min-w-0">
-        <header className="h-14 flex items-center justify-between px-6 border-b border-blue-500/10 flex-shrink-0">
+        {/* Desktop Status Header (Hidden on Mobile) */}
+        <header className="hidden md:flex h-14 items-center justify-between px-6 border-b border-blue-500/10 bg-[#0A1628] flex-shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-xs text-blue-300/50 font-mono">
@@ -113,7 +76,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
           <span className="text-xs text-blue-300/30 font-mono">mistral-nemo · Ollama</span>
         </header>
-        <div className="flex-1 overflow-hidden">{children}</div>
+
+        {/* Page Content */}
+        <div className="flex-1 overflow-x-hidden overflow-y-auto">
+          {children}
+        </div>
       </main>
     </div>
   )
